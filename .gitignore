@@ -1,0 +1,8 @@
+node_modules/
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+reports/mochawesome/*.json
+reports/mochawesome/*.html
+reports/mochawesome/assets/
+.env
