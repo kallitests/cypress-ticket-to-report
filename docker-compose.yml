@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  cypress-smoke:
+    build: .
+    environment:
+      - CYPRESS_baseUrl=https://www.saucedemo.com
+    volumes:
+      - ./reports:/app/reports
+    command: ["npx", "cypress", "run", "--env", "tags=@smoke"]
+
+  cypress-regression:
+    build: .
+    environment:
+      - CYPRESS_baseUrl=https://www.saucedemo.com
+    volumes:
+      - ./reports:/app/reports
+    command: ["npx", "cypress", "run", "--env", "tags=@regression"]

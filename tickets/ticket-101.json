@@ -1,0 +1,15 @@
+{
+  "key": "JIRA-101",
+  "summary": "As a user, I want to log in and purchase a product so that I receive an order confirmation",
+  "type": "User Story",
+  "priority": "Critical",
+  "acceptanceCriteria": [
+    "User can log in with valid credentials",
+    "User can add a product to the cart",
+    "User can complete checkout and see the order confirmation message"
+  ],
+  "linkedTests": [
+    "cypress/e2e/features/smoke/login-checkout.feature"
+  ],
+  "note": "This file simulates a Jira ticket for the POC (no Jira instance required). In a V2 iteration, this can be replaced by a real Jira Cloud + Xray integration via REST API."
+}

@@ -1,0 +1,44 @@
+name: Regression Tests
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # Nightly run at 2am UTC
+  workflow_dispatch:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cypress run - Full regression suite (UI + API)
+        uses: cypress-io/github-action@v6
+        with:
+          env: tags=@regression
+          config: baseUrl=https://www.saucedemo.com
+
+      - name: Upload Mochawesome report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mochawesome-report-regression
+          path: reports/mochawesome
+
+      - name: Publish report to GitHub Pages
+        if: always()
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: reports/mochawesome
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "Regression suite FAILED on ${{ github.repository }} - run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

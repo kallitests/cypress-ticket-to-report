@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cypress-smoke-tests
+  namespace: qa-poc
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+        - name: cypress-smoke
+          # Replace OWNER/REPO with your GitHub Container Registry path
+          image: ghcr.io/OWNER/poc-smoke-tests-cicd:latest
+          command: ["npx", "cypress", "run", "--env", "tags=@smoke"]
+          env:
+            - name: CYPRESS_baseUrl
+              value: "https://www.saucedemo.com"
+          volumeMounts:
+            - name: reports
+              mountPath: /app/reports
+      restartPolicy: Never
+      volumes:
+        - name: reports
+          emptyDir: {}
