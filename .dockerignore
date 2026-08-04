@@ -1,0 +1,8 @@
+node_modules
+vendor/cypress-realworld-app/node_modules
+reports
+cypress/videos
+cypress/screenshots
+cypress/downloads
+.git
+*.log

@@ -1,27 +1,54 @@
 {
-  "name": "poc-smoke-tests-cicd",
-  "version": "1.0.0",
-  "description": "POC - Smoke tests & non-regression pipeline: Jira ticket to reporting, via Gherkin, Cypress, Docker, Kubernetes, GitHub Actions and Slack alerting. Target: saucedemo.com (UI) and reqres.in (API).",
+  "name": "cypress-ticket-to-report",
+  "version": "2.0.0",
+  "description": "QA automation showroom: Jira ticket to Mochawesome report, via Cypress (TypeScript, App Actions), cypress-realworld-app as SUT, Docker, Kubernetes, GitHub Actions and Slack alerting.",
+  "private": true,
+  "type": "commonjs",
   "scripts": {
     "cy:open": "cypress open",
-    "test:smoke": "cypress run --env tags=@smoke",
-    "test:regression": "cypress run --env tags=@regression",
+    "test:smoke": "cypress run --env grepTags=@smoke",
+    "test:regression": "cypress run --env grepTags=@regression",
+    "test:api": "cypress run --env grepTags=@api",
     "test:all": "cypress run",
+    "sut:up": "docker compose up -d --build rwa",
+    "sut:down": "docker compose down",
+    "sut:wait": "wait-on http://localhost:3000 http://localhost:3001/testData/users",
     "report:merge": "mochawesome-merge reports/mochawesome/*.json > reports/mochawesome/merged.json",
-    "report:generate": "marge reports/mochawesome/merged.json -f report -o reports/mochawesome"
+    "report:generate": "marge reports/mochawesome/merged.json -f report -o reports/mochawesome",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "@badeball/cypress-cucumber-preprocessor": "^20.0.0",
-    "@bahmutov/cypress-esbuild-preprocessor": "^2.2.0",
-    "cypress": "^13.13.0",
+    "@cypress/grep": "^6.0.2",
+    "@types/node": "^26.1.2",
+    "ajv": "^8.20.0",
+    "cypress": "^15.19.0",
+    "cypress-axe": "^1.7.0",
     "cypress-mochawesome-reporter": "^3.8.2",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-cypress": "^6.4.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "mochawesome": "^7.1.3",
     "mochawesome-merge": "^4.3.0",
-    "mochawesome-report-generator": "^6.2.0"
+    "mochawesome-report-generator": "^6.2.0",
+    "prettier": "^3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.66.0",
+    "wait-on": "^9.1.0"
   },
-  "cypress-cucumber-preprocessor": {
-    "stepDefinitions": [
-      "cypress/e2e/step_definitions/**/*.js"
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
     ]
   }
 }

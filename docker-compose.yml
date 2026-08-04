@@ -1,18 +1,42 @@
-version: "3.8"
-
+# Full local reproduction of the POC: `docker compose up` boots the SUT
+# (cypress-realworld-app) and runs the smoke suite against it.
+#
+# IMPORTANT — network topology (see docs/adr/0002-rwa-as-sut-custom-image.md):
+# RWA's built frontend calls its API on an explicit `http://localhost:<port>`
+# URL baked in at build time (see vendor/cypress-realworld-app/src/machines/
+# *.ts), not a relative path. That means a Cypress container on its own
+# Docker network can't reach the API via a service hostname — it has to see
+# the *same* localhost as the rwa container. `network_mode: "service:rwa"`
+# gives the cypress service exactly that (shared network namespace), which is
+# why it has no `ports:` of its own below.
 services:
-  cypress-smoke:
-    build: .
-    environment:
-      - CYPRESS_baseUrl=https://www.saucedemo.com
-    volumes:
-      - ./reports:/app/reports
-    command: ["npx", "cypress", "run", "--env", "tags=@smoke"]
+  rwa:
+    build:
+      context: .
+      dockerfile: docker/rwa.Dockerfile
+    container_name: rwa
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/testData/users"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 45s
 
-  cypress-regression:
+  cypress:
     build: .
+    depends_on:
+      rwa:
+        condition: service_healthy
+    network_mode: "service:rwa"
     environment:
-      - CYPRESS_baseUrl=https://www.saucedemo.com
+      - CYPRESS_baseUrl=http://localhost:3000
     volumes:
       - ./reports:/app/reports
-    command: ["npx", "cypress", "run", "--env", "tags=@regression"]
+      - ./cypress/screenshots:/app/cypress/screenshots
+      - ./cypress/videos:/app/cypress/videos
+    # Default to smoke; override for other suites, e.g.:
+    #   docker compose run --rm cypress npx cypress run --env grepTags=@regression
+    command: ["npx", "cypress", "run", "--env", "grepTags=@smoke"]

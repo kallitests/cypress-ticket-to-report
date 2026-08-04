@@ -1,8 +1,11 @@
 node_modules/
+vendor/cypress-realworld-app/node_modules/
+vendor/cypress-realworld-app/build/
 cypress/videos/
 cypress/screenshots/
 cypress/downloads/
 reports/mochawesome/*.json
 reports/mochawesome/*.html
 reports/mochawesome/assets/
+*.tsbuildinfo
 .env
