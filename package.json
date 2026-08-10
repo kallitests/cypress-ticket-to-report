@@ -10,6 +10,10 @@
     "test:regression": "cypress run --env grepTags=@regression",
     "test:api": "cypress run --env grepTags=@api",
     "test:all": "cypress run",
+    "pw:test": "playwright test",
+    "pw:test:smoke": "playwright test --grep @smoke",
+    "pw:codegen": "playwright codegen http://localhost:3000",
+    "pw:report": "playwright show-report reports/playwright-html",
     "sut:up": "docker compose up -d --build rwa",
     "sut:down": "docker compose down",
     "sut:wait": "wait-on http://localhost:3000 http://localhost:3001/testData/users",
@@ -24,6 +28,7 @@
   },
   "devDependencies": {
     "@cypress/grep": "^6.0.2",
+    "@playwright/test": "^1.55.0",
     "@types/node": "^26.1.2",
     "ajv": "^8.20.0",
     "cypress": "^15.19.0",

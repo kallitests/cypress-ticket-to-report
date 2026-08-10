@@ -1,10 +1,11 @@
 # 🧪 cypress-ticket-to-report
 
-> **End-to-end QA automation showroom, 100% Cypress + TypeScript.**
-> From a Jira ticket to a running critical-path smoke suite, exercised against a real application (not a toy demo site), Dockerized, orchestrated on Kubernetes, wired into GitHub Actions, alerting on Slack and reporting via Mochawesome.
+> **End-to-end QA automation showroom — migrating from Cypress to Playwright, TypeScript throughout.**
+> From a Jira ticket to a running critical-path smoke suite, exercised against a real application (not a toy demo site), Dockerized, orchestrated on Kubernetes, wired into GitHub Actions, alerting on Slack and reporting via Mochawesome / Playwright HTML Report. The Cypress suite is the historical baseline; Playwright (CLI + MCP) is the migration target — see [MIGRATION.md](MIGRATION.md).
 
 [![Status](https://img.shields.io/badge/status-POC%20in%20progress-orange?style=flat-square)](<>)
 [![Cypress](https://img.shields.io/badge/Cypress-TypeScript-17202C?style=flat-square&logo=cypress)](https://www.cypress.io)
+[![Playwright](https://img.shields.io/badge/Playwright-migration%20target-2EAD33?style=flat-square&logo=playwright)](https://playwright.dev)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker)](https://docker.com)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-orchestration-326CE5?style=flat-square&logo=kubernetes)](https://kubernetes.io)
 [![GitHub Actions](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=flat-square&logo=githubactions)](https://github.com/features/actions)
@@ -16,6 +17,7 @@
 
 - [Why this repo?](#-why-this-repo)
 - [Status — what's live vs. in progress](#-status--whats-live-vs-in-progress)
+- [Cypress → Playwright migration](#-cypress--playwright-migration)
 - [Test target](#-test-target)
 - [Test suites](#-test-suites)
 - [Architecture](#%EF%B8%8F-architecture)
@@ -82,8 +84,37 @@ showroom. It's being built and committed phase by phase.
 | Postman/Bruno collection                                                 | ⬜ Not started                                                                                                                               |
 | `CONTRIBUTING.md`, `CODEOWNERS`, PR template                             | ⬜ Not started                                                                                                                               |
 | Kubernetes manifests (`k8s/`) updated for RWA                            | ⬜ Not started — still reference the old image/target                                                                                        |
+| Playwright socle (`playwright/`), sign-in scenario migrated               | ✅ Done — see [Cypress → Playwright migration](#-cypress--playwright-migration), [MIGRATION.md](MIGRATION.md)                               |
+| Playwright CLI (`codegen`, `init-agents`) on a new scenario               | ⬜ Not started                                                                                                                               |
+| Playwright MCP session (`@playwright/mcp` + Claude Code)                  | ⬜ Not started                                                                                                                               |
+| CI running both suites (Cypress + Playwright) in the same workflow        | ⬜ Not started                                                                                                                               |
 
 See the [Roadmap](#-roadmap) for the full punch list.
+
+---
+
+## 🔀 Cypress → Playwright migration
+
+This repo is mid-migration from Cypress to Playwright — both suites live
+side by side on purpose (the coexistence is part of the proof, not a
+mess to clean up). Full rationale and end-state target:
+[docs/SPEC-POC-SMOKE-TESTS-CICD-PLAYWRIGHT-MCP.md](docs/SPEC-POC-SMOKE-TESTS-CICD-PLAYWRIGHT-MCP.md).
+Line-by-line comparison for the scenario migrated so far: [MIGRATION.md](MIGRATION.md).
+
+| | Cypress (`cypress/`) | Playwright (`playwright/`) |
+| --- | --- | --- |
+| Role | Historical baseline — kept, not removed | Migration target |
+| Sign-in smoke scenario (`JIRA-101`) | ✅ Implemented | ✅ Implemented |
+| Payment smoke scenario | ✅ Implemented | ⬜ Not migrated yet |
+| Pattern | App Actions ([ADR 0001](docs/adr/0001-app-actions-vs-page-objects.md)) | Page Object Model + `test.extend` fixtures |
+| Selectors | `cy.getByTestId()` custom command | `page.getByTestId()`, `testIdAttribute: "data-test"` |
+| Reporting | Mochawesome (`reports/mochawesome/`) | Playwright HTML Report (`reports/playwright-html/`) |
+| Run command | `npm run test:smoke` | `npm run pw:test:smoke` |
+
+Next steps: Playwright CLI (`codegen`/`init-agents`) on an uncovered
+scenario, then a Playwright MCP session documented in
+`mcp-sessions/MCP-SESSION.md`, then wiring both suites into one CI
+workflow before the eventual Cypress switch-off.
 
 ---
 
@@ -160,19 +191,27 @@ cypress-ticket-to-report/
 │   │   ├── e2e.ts
 │   │   └── types.ts
 │   └── screenshots/, videos/  # gitignored, on failure only
+├── playwright/                 # Migration target — see MIGRATION.md
+│   ├── tests/                  # login.spec.ts (JIRA-101, @smoke)
+│   ├── pages/                  # Page Object Model (login.page.ts)
+│   ├── fixtures/                # api.ts (test.extend, replaces App Actions)
+│   └── features/                # Gherkin mirror, documentation only
 ├── vendor/
 │   └── cypress-realworld-app/ # SUT, git submodule (pinned commit)
 ├── docker/
 │   ├── rwa.Dockerfile         # builds the SUT (RWA ships none)
 │   └── rwa-entrypoint.sh
 ├── docs/
-│   └── adr/                   # Architecture Decision Records
+│   ├── adr/                    # Architecture Decision Records
+│   └── SPEC-POC-SMOKE-TESTS-CICD-PLAYWRIGHT-MCP.md  # v2 spec, migration brief
 ├── tickets/                    # Simulated Jira ticket(s) for traceability
 ├── k8s/                        # Kubernetes Job manifests (pending RWA update)
 ├── .github/workflows/          # GitHub Actions pipelines (pending RWA update)
 ├── Dockerfile                  # Cypress test-runner image
 ├── docker-compose.yml          # rwa + cypress services
 ├── cypress.config.ts
+├── playwright.config.ts
+├── MIGRATION.md                # Cypress → Playwright comparison, scenario by scenario
 ├── tsconfig.json
 └── eslint.config.mjs
 ```
@@ -191,6 +230,9 @@ npm run sut:wait           # waits for the SUT to be ready (seeded + serving)
 
 npm run cy:open            # interactive mode
 npm run test:smoke         # headless smoke suite
+
+npx playwright install --with-deps chromium   # once, after npm install
+npm run pw:test:smoke      # Playwright equivalent, headless
 ```
 
 Already cloned without submodules? Run `git submodule update --init` first.
@@ -263,14 +305,22 @@ kubectl logs -f job/cypress-smoke-tests -n qa-poc
 - [ ] Update `k8s/` manifests for the RWA-based setup
 - [ ] README "Compétences démontrées" section mapping each item to a file/folder
 
+**Cypress → Playwright migration** (see [MIGRATION.md](MIGRATION.md) and the [v2 spec](docs/SPEC-POC-SMOKE-TESTS-CICD-PLAYWRIGHT-MCP.md)):
+
+- [x] V2: Playwright socle in parallel — sign-in scenario rewritten in Playwright/TypeScript, POM, `test.extend` fixtures, `MIGRATION.md` started
+- [ ] V2: migrate the payment smoke scenario
+- [ ] V3: Playwright CLI — `codegen` + `init-agents` on a new, uncovered scenario
+- [ ] V4: Playwright MCP session (`@playwright/mcp` + Claude Code), test candidate reviewed and committed, documented in `mcp-sessions/MCP-SESSION.md`
+- [ ] V5: both suites wired into the same CI workflow, Kubernetes manifests updated, GitHub Pages publishing the Playwright HTML Report, progressive switch-over to Playwright-only
+- [ ] V6 (optional): real Jira Cloud + Xray integration, replacing `tickets/ticket-101.json`
+
 **Later:**
 
-- [ ] V2: replace `tickets/ticket-101.json` with a real Jira Cloud + Xray integration (REST API)
-- [ ] V2: add cross-browser execution (BrowserStack / Sauce Labs real device cloud)
-- [ ] V3: add a lightweight load-testing scenario (k6 or Artillery) as a complementary pipeline stage
+- [ ] Add cross-browser execution (BrowserStack / Sauce Labs real device cloud)
+- [ ] Add a lightweight load-testing scenario (k6 or Artillery) as a complementary pipeline stage
 
 ⭐ Star this repo to follow the progress.
 
 ---
 
-_Built with 🧪 Cypress · 🟦 TypeScript · 🐳 Docker · ☸️ Kubernetes · ⚙️ GitHub Actions_
+_Built with 🧪 Cypress · 🎭 Playwright · 🟦 TypeScript · 🐳 Docker · ☸️ Kubernetes · ⚙️ GitHub Actions_

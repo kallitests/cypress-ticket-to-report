@@ -7,5 +7,8 @@ cypress/downloads/
 reports/mochawesome/*.json
 reports/mochawesome/*.html
 reports/mochawesome/assets/
+reports/playwright-html/
+playwright-report/
+test-results/
 *.tsbuildinfo
 .env
