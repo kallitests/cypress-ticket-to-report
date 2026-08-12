@@ -18,7 +18,7 @@
 - [Why this repo?](#-why-this-repo)
 - [Status — what's live vs. in progress](#-status--whats-live-vs-in-progress)
 - [Cypress → Playwright migration](#-cypress--playwright-migration)
-- [Test target](#-test-target)
+- [Test targets](#-test-targets)
 - [Test suites](#-test-suites)
 - [Architecture](#%EF%B8%8F-architecture)
 - [Architecture Decision Records](#-architecture-decision-records)
@@ -88,6 +88,9 @@ showroom. It's being built and committed phase by phase.
 | Playwright CLI (`codegen`, `init-agents`) on a new scenario               | ⬜ Not started                                                                                                                               |
 | Playwright MCP session (`@playwright/mcp` + Claude Code)                  | ⬜ Not started                                                                                                                               |
 | CI running both suites (Cypress + Playwright) in the same workflow        | ⬜ Not started                                                                                                                               |
+| Second SUT, Playwright-only: automationexercise.com — UI `@smoke` (account + cart/checkout) | ✅ Done — see [Test targets](#-test-targets), `playwright/tests/automationexercise/`                                                          |
+| Second SUT, Playwright-only: automationexercise.com — API `@smoke @api` (14 documented endpoints) | ✅ Done — `playwright/tests/automationexercise/api.spec.ts`                                                                                    |
+| CI wiring for the automationexercise Playwright project                   | ⬜ Not started — `.github/workflows/*.yml` don't invoke it yet, same pending state as the rest of the Playwright CI wiring above             |
 
 See the [Roadmap](#-roadmap) for the full punch list.
 
@@ -118,17 +121,28 @@ workflow before the eventual Cypress switch-off.
 
 ---
 
-## 🎯 Test target
+## 🎯 Test targets
+
+This repo runs against **two independent SUTs**, on purpose — one gated
+behind Docker (RWA, the main showroom target), one that needs zero setup
+(automationexercise.com), so a recruiter can run `npm run pw:test:ae`
+against the internet without cloning submodules or booting a container.
+Both are wired as separate Playwright **projects** in `playwright.config.ts`
+(`rwa-chromium` / `automationexercise-chromium`), each with its own
+`baseURL` and `testIdAttribute`.
 
 | Layer        | Target                                                                                                                                                                                                  | Why                                                                                                                                                                                                                                                                                |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **UI + API** | [cypress-realworld-app](https://github.com/cypress-io/cypress-realworld-app) (RWA), Cypress's own reference application for a payment app (users, contacts, transactions, notifications, bank accounts) | Real, non-trivial app with backend state — a more credible showroom than a static demo site. Vendored as a pinned git submodule (`vendor/cypress-realworld-app`), run via a Docker image this repo builds (RWA ships neither a `Dockerfile` nor a `docker-compose.yml` of its own) |
+| **UI + API** | [automationexercise.com](https://automationexercise.com), a public e-commerce demo site with a full account/cart/checkout journey and a documented REST API (`/api_list`, 14 scenarios)                 | Playwright-only second target: no local Docker stack needed, a live, third-party site with real network latency — a different kind of proof than a vendored SUT, and the one covered by this repo's `@smoke` UI + API suites end to end                                          |
 
-> Selectors use RWA's own `data-test` convention (not `data-cy`), verified by reading the vendored source rather than assumed. See [ADR 0002](docs/adr/0002-rwa-as-sut-custom-docker-image.md) for why the SUT needs a slightly unusual Docker network setup.
+> RWA selectors use its own `data-test` convention (not `data-cy`), verified by reading the vendored source. See [ADR 0002](docs/adr/0002-rwa-as-sut-custom-docker-image.md). automationexercise.com selectors use its own `data-qa` convention, the attribute the site itself adds for automation practice.
 
 ---
 
 ## 🧪 Test suites
+
+### Cypress + Playwright, against RWA
 
 | Suite          | Tag           | Scope                                                                             | Trigger                            | Status         |
 | -------------- | ------------- | --------------------------------------------------------------------------------- | ---------------------------------- | -------------- |
@@ -137,6 +151,15 @@ workflow before the eventual Cypress switch-off.
 | **API**        | `@api`        | `cy.request()` against RWA's REST endpoints, no UI                                | Every push, in parallel with smoke | ⬜ Roadmap     |
 
 Suite selection uses [`@cypress/grep`](https://github.com/cypress-io/cypress-grep) — tags live on the `describe`/`it` block itself (`{ tags: '@smoke' }`), run with `cypress run --env grepTags=@smoke`. See [ADR 0003](docs/adr/0003-deterministic-seed-and-tagging-strategy.md).
+
+### Playwright, against automationexercise.com
+
+| Suite         | Tag              | Scope                                                                                                                                                                                                                                        | Files                                                                      | Status         |
+| ------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------- |
+| **UI smoke**  | `@smoke`         | Account lifecycle (register, logout, log back in, delete) and cart/checkout (add product, checkout, pay, order confirmation)                                                                                                                | `playwright/tests/automationexercise/account.spec.ts`, `checkout.spec.ts`   | ✅ Implemented |
+| **API smoke** | `@smoke` `@api`  | The 14 documented scenarios on `/api_list`: products/brands list + wrong-verb rejections, search with/without param, login verify (valid, invalid, missing param, wrong verb), full create-verify-read-update-delete account chain          | `playwright/tests/automationexercise/api.spec.ts`                           | ✅ Implemented |
+
+Tags live in the test title (`test.describe("... @smoke")`), same convention as the RWA Playwright suite (see [MIGRATION.md](MIGRATION.md)) — run with `npm run pw:test:ae:smoke` / `npm run pw:test:ae:api`, or `--grep` directly.
 
 ---
 
@@ -192,10 +215,16 @@ cypress-ticket-to-report/
 │   │   └── types.ts
 │   └── screenshots/, videos/  # gitignored, on failure only
 ├── playwright/                 # Migration target — see MIGRATION.md
-│   ├── tests/                  # login.spec.ts (JIRA-101, @smoke)
-│   ├── pages/                  # Page Object Model (login.page.ts)
-│   ├── fixtures/                # api.ts (test.extend, replaces App Actions)
-│   └── features/                # Gherkin mirror, documentation only
+│   ├── tests/
+│   │   ├── login.spec.ts       # RWA, JIRA-101, @smoke
+│   │   └── automationexercise/ # second SUT, Playwright-only — account.spec.ts, checkout.spec.ts, api.spec.ts (@smoke)
+│   ├── pages/
+│   │   ├── login.page.ts       # RWA Page Object Model
+│   │   └── automationexercise/ # login/signup, account-info, nav, products, cart, checkout, payment
+│   ├── fixtures/
+│   │   ├── api.ts               # RWA — test.extend, replaces App Actions
+│   │   └── automationexercise/ # api.ts (14 documented REST scenarios), test-data.ts, types.ts
+│   └── features/                # Gherkin mirror, documentation only (both SUTs)
 ├── vendor/
 │   └── cypress-realworld-app/ # SUT, git submodule (pinned commit)
 ├── docker/
@@ -232,10 +261,21 @@ npm run cy:open            # interactive mode
 npm run test:smoke         # headless smoke suite
 
 npx playwright install --with-deps chromium   # once, after npm install
-npm run pw:test:smoke      # Playwright equivalent, headless
+npm run pw:test:rwa:smoke  # Playwright equivalent against RWA, headless
 ```
 
 Already cloned without submodules? Run `git submodule update --init` first.
+
+The automationexercise.com suite needs none of the above — no submodule, no Docker, no local SUT to boot:
+
+```bash
+npm install
+npx playwright install --with-deps chromium   # once, after npm install
+
+npm run pw:test:ae:smoke   # UI smoke: account lifecycle + cart/checkout
+npm run pw:test:ae:api     # API smoke: the 14 documented /api_list scenarios
+npm run pw:test:ae         # both, full automationexercise-chromium project
+```
 
 ---
 
